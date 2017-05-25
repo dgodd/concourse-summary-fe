@@ -1,20 +1,25 @@
 <template>
   <div class="hello">
-    <router-link v-for="job in jobs" :to="job.Job" target="_blank" class="outer running">
+    <router-link v-for="job in relevant" :key="key(job)" :to="job.Job" target="_blank" :class="classes(job)">
       <div class="status">
-        <div class="succeeded" style="width: 100%;"></div>
+        <div :class="job.Status" style="width: 100%;"></div>
       </div>
 
       <div class="inner">
         <span><span style="font-size: 87.2727%;">{{job.Pipeline}}</span></span>
         <span><span style="font-size: 61.1765%;">{{job.Job}}</span></span>
-        <span><span style="font-size: 93.8346%;">(0d) 00:44:57</span></span>
+        <span><span style="font-size: 93.8346%;">
+          ({{ago(job)}})
+          {{runtime(job)}}
+        </span></span>
       </div>
     </router-link>
   </div>
 </template>
 
 <script>
+import moment from 'moment'
+
 export default {
   name: 'hello',
   data () {
@@ -25,17 +30,46 @@ export default {
   created () {
     this.loadJobs()
   },
+  computed: {
+    relevant () {
+      return this.jobs.filter(j => j.Status !== 'succeeded')
+    }
+  },
   methods: {
     loadJobs () {
       fetch('/jobs.json')
         .then(resp => resp.json())
         .then(jobs => { this.jobs = jobs; console.log(jobs) })
+    },
+    classes (job) {
+      console.log(job.Status)
+      if (job.Status === 'started') {
+        return 'outer running'
+      }
+      return 'outer'
+    },
+    key (job) {
+      return `${job.Pipeline}/${job.Job}`
+    },
+    runtime (job) {
+      if (job.EndTime) {
+        return moment(job.EndTime).from(job.StartTime, true)
+      }
+      return moment(job.StartTime).toNow(true)
+    },
+    ago (job) {
+      return moment(job.StartTime).toNow(true)
     }
   }
 }
 </script>
 
 <style scoped>
+.hello {
+display: flex;
+flex-flow: row wrap;
+justify-content: space-around;
+}
 .outer {display:block;width:300px;height:200px;color:white;background:#5C6C7D;position:relative;margin:4px;}
 .status {position:absolute;top:0;bottom:0;left:0;right:0;white-space:nowrap;overflow:hidden;text-align:left;}
 .paused_job, .aborted, .errored, .failed, .succeeded {display:inline-block;height:100%;margin:0;padding:0;float:left;}
